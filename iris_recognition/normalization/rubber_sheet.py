@@ -48,7 +48,7 @@ class RubberSheetNormalizer:
         # r goes from 0 (pupil boundary) to 1 (limbus boundary)
         # theta goes from 0 to 2*pi
         r = np.linspace(0, 1, self.height, dtype=np.float32)
-        theta = np.linspace(0, 2 * np.pi, self.width, dtype=np.float32)
+        theta = np.linspace(0, 2 * np.pi, self.width, endpoint=False, dtype=np.float32)
         
         # 2D Meshgrid
         r_grid, theta_grid = np.meshgrid(r, theta, indexing='ij')
