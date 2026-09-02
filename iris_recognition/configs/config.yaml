@@ -1,0 +1,47 @@
+dataset:
+  path: "Dataset"
+  output_dir: "results"
+  splits_dir: "splits"
+  index_path: "dataset_index.csv"
+
+processing:
+  workers: 4
+  batch_size: 1
+  save_overlays: true
+
+segmentation:
+  pupil:
+    min_radius: 15
+    max_radius: 90
+    threshold_val: 55
+  limbus:
+    min_radius: 70
+    max_radius: 175
+  gac:
+    enabled: true
+    iterations: 30        # num_iter for skimage GAC (run at half-res → ≈ 30 effective iters)
+    smoothing: 2          # contour smoothing iterations
+    balloon: 0.5          # balloon force magnitude (sign set per boundary type)
+    alpha: 100.0          # inverse-Gaussian gradient alpha (edge sensitivity)
+    sigma: 2.0            # Gaussian sigma for edge-stopping function
+    threshold: 0.69       # edge-stopping threshold
+
+normalization:
+  width: 512
+  height: 64
+
+features:
+  method: "log_gabor"
+  log_gabor:
+    min_wavelength: 18    # pixels, smallest filter scale
+    num_scales: 4         # number of frequency scales
+    mult: 1.8             # inter-scale wavelength multiplier
+    sigma_on_f: 0.5       # filter bandwidth (sigma / centre_freq)
+
+matching:
+  method: "hamming"
+  rotation_shift: 10      # angular search ±10 pixel columns
+  min_valid_frac: 0.15    # minimum fraction of valid bits required
+
+evaluation:
+  random_seed: 42

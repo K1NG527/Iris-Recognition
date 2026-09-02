@@ -1,0 +1,22 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Generated evaluation reports, logs, and cache
+*.log
+eval_progress.log
+pipeline_run.log
+
+# Generated output results (templates, overlays, reports)
+results/
+
+# Dataset directory (contains large raw images)
+Dataset/
+
+# OS / Editor temporary files
+.DS_Store
+.vscode/
+.idea/
+*.swp
