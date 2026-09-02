@@ -2,24 +2,47 @@ import cv2
 import numpy as np
 
 class RubberSheetNormalizer:
+    """Daugman's Rubber-Sheet Model for Iris Normalization.
+    
+    Transforms the circular annular iris region from Cartesian coordinates (x, y)
+    to a dimensionless pseudo-polar coordinate system (r, theta), where:
+      - r in [0, 1] is the radial dimension (r=0 at pupil boundary, r=1 at limbus boundary)
+      - theta in [0, 2*pi] is the angular dimension around the pupil center
+    
+    Mathematical Formulation (Class Notes Slide 98-99):
+      I(x(r, theta), y(r, theta)) -> I(r, theta)
+      
+      where:
+        x(r, theta) = (1 - r) * xp(theta) + r * xl(theta)
+        y(r, theta) = (1 - r) * yp(theta) + r * yl(theta)
+        
+        xp(theta) = xp0 + rp * cos(theta)
+        yp(theta) = yp0 + rp * sin(theta)
+        xl(theta) = xl0 + rl * cos(theta)
+        yl(theta) = yl0 + rl * sin(theta)
+        
+      (xp0, yp0, rp) = pupillary boundary circle center and radius
+      (xl0, yl0, rl) = limbus boundary circle center and radius
+    """
+
     def __init__(self, config=None):
         self.config = config if config else {}
         norm_config = self.config.get("normalization", {})
-        self.width = norm_config.get("width", 512)
-        self.height = norm_config.get("height", 64)
+        self.width = norm_config.get("width", 512)    # Angular resolution (theta samples)
+        self.height = norm_config.get("height", 64)   # Radial resolution (r samples)
         
     def normalize(self, img_gray, xp, yp, rp, xi, yi, ri, mask):
         """Maps circular iris region to a rectangular polar representation of size height x width.
         
         Parameters:
         - img_gray: 2D grayscale image
-        - xp, yp, rp: pupil circle center and radius
-        - xi, yi, ri: limbus circle center and radius
-        - mask: binary iris mask (0 and 255)
+        - xp, yp, rp: pupil circle center (xp, yp) and radius rp (pupillary boundary)
+        - xi, yi, ri: limbus circle center (xi, yi) and radius ri (limbus boundary)
+        - mask: binary iris mask (255 for valid iris, 0 for occlusions/eyelids)
         
         Returns:
-        - normalized_iris (height x width, uint8)
-        - normalized_mask (height x width, uint8)
+        - normalized_iris (height x width, uint8): unwrapped iris texture strip
+        - normalized_mask (height x width, uint8): unwrapped binary mask strip
         """
         # Create r and theta grids
         # r goes from 0 (pupil boundary) to 1 (limbus boundary)
@@ -27,10 +50,10 @@ class RubberSheetNormalizer:
         r = np.linspace(0, 1, self.height, dtype=np.float32)
         theta = np.linspace(0, 2 * np.pi, self.width, dtype=np.float32)
         
-        # Meshgrid
+        # 2D Meshgrid
         r_grid, theta_grid = np.meshgrid(r, theta, indexing='ij')
         
-        # Precompute trigonometric terms
+        # Precompute trigonometric terms for all angles
         cos_t = np.cos(theta_grid)
         sin_t = np.sin(theta_grid)
         
@@ -42,7 +65,9 @@ class RubberSheetNormalizer:
         xi_t = xi + ri * cos_t
         yi_t = yi + ri * sin_t
         
-        # Interpolate between pupil and limbus boundaries
+        # Linear interpolation between pupillary and limbus boundaries
+        # x(r, theta) = (1 - r) * xp(theta) + r * xl(theta)
+        # y(r, theta) = (1 - r) * yp(theta) + r * yl(theta)
         map_x = (1 - r_grid) * xp_t + r_grid * xi_t
         map_y = (1 - r_grid) * yp_t + r_grid * yi_t
         

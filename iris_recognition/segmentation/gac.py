@@ -197,8 +197,12 @@ class GACRefiner:
             cv2.circle(fb, (int(round(cx)), int(round(cy))), max(1, int(round(r))), 255, -1)
             return cx, cy, r, fb
 
-        # Prefer minimum enclosing circle — more stable than bounding-rect for iris
-        (fit_x, fit_y), fit_r = cv2.minEnclosingCircle(largest)
+        # For limbus boundary: apply Slide 100 6-point lateral angle sampling
+        # [-30°, 0°, 30°, 150°, 180°, 210°] to avoid eyelid/eyelash distortion
+        if not is_pupil:
+            fit_x, fit_y, fit_r = self._fit_limbus_circle_slide100(largest, cx, cy, r)
+        else:
+            (fit_x, fit_y), fit_r = cv2.minEnclosingCircle(largest)
 
         # Sanity: don't accept a wildly different radius (>50% change)
         if not (0.5 * r <= fit_r <= 1.5 * r):
@@ -207,6 +211,42 @@ class GACRefiner:
             return cx, cy, r, evolved_mask
 
         return float(fit_x), float(fit_y), float(fit_r), evolved_mask
+
+    def _fit_limbus_circle_slide100(self, contour, cx, cy, initial_r):
+        """Fits limbus circle using 6-point angle sampling [-30°, 0°, 30°, 150°, 180°, 210°]
+        as specified in class notes (Slide 100) to isolate iris-sclera boundaries from eyelids."""
+        pts = contour.reshape(-1, 2).astype(np.float32)
+        dx = pts[:, 0] - cx
+        dy = pts[:, 1] - cy
+        dists = np.sqrt(dx ** 2 + dy ** 2)
+        angles_deg = np.rad2deg(np.arctan2(dy, dx))
+
+        target_angles = [-30.0, 0.0, 30.0, 150.0, 180.0, 210.0]
+        sampled_distances = []
+
+        for target in target_angles:
+            diff = np.abs((angles_deg - target + 180) % 360 - 180)
+            near_indices = np.where(diff < 20.0)[0]
+            if len(near_indices) > 0:
+                sampled_distances.append(float(np.median(dists[near_indices])))
+            else:
+                sampled_distances.append(initial_r)
+
+        R_mean = float(np.mean(sampled_distances))
+        if not (0.6 * initial_r <= R_mean <= 1.5 * initial_r):
+            R_mean = initial_r
+
+        # Select contour points lying on the lateral iris-sclera boundary
+        valid_dist = (dists >= 0.7 * R_mean) & (dists <= 1.3 * R_mean)
+        lateral_angles = (np.abs(angles_deg) <= 45.0) | (np.abs(angles_deg) >= 135.0)
+        selected = pts[valid_dist & lateral_angles]
+
+        if len(selected) >= 6:
+            (fit_x, fit_y), fit_r = cv2.minEnclosingCircle(selected)
+            return float(fit_x), float(fit_y), float(fit_r)
+
+        (fit_x, fit_y), fit_r = cv2.minEnclosingCircle(contour)
+        return float(fit_x), float(fit_y), float(fit_r)
 
 
 # ---------------------------------------------------------------------------
