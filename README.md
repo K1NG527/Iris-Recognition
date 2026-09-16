@@ -106,13 +106,30 @@ python recognize.py --image path/to/query_eye.jpg --gallery results/templates
 
 ---
 
-### 4. Evaluating System Performance
+### 4. Evaluating System Performance (Classical Daugman Baseline)
 
 Compute verification metrics (FAR, FRR, EER, AUC) and identification rank metrics (Rank-1, Rank-5):
 
 ```bash
 python evaluate.py
 ```
+
+---
+
+### 5. Deep Learning Iris Recognition & Extrapolation Suite
+
+Train and evaluate the deep neural network (`IrisDeepNet`) on normalized iris strips, verify normalization accuracy, evaluate recognition on a fast representative subset, and mathematically project accuracy for the full 20,000-image dataset:
+
+```bash
+# Run normalization verification, subset training & testing, and whole-dataset extrapolation:
+python evaluate_deep_iris.py --epochs 10 --num_train_subjects 30 --num_test_subjects 15
+```
+
+Outputs:
+- Normalization fidelity and invariance verification metrics.
+- 1:1 Verification (EER, AUC, Decidability $d'$) and 1:N Identification (Rank-1, Rank-5, Rank-10) on unseen test subset.
+- Extreme Value Theory (EVT) extrapolation for the full 2,000-identity dataset.
+- High-resolution 6-panel diagnostic dashboard saved to `results/deep_learning/evaluation_results.png`.
 
 ---
 
